@@ -6,6 +6,7 @@ import com.yawkar.backend.utils.GsonUtils;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Type;
+import java.time.format.DateTimeFormatter;
 
 @Component
 public class ShopUnitSerializer implements JsonSerializer<ShopUnitEntity> {
@@ -21,8 +22,12 @@ public class ShopUnitSerializer implements JsonSerializer<ShopUnitEntity> {
         } else {
             jsonObject.addProperty("parentId", shopUnitEntity.getParentUuid().toString());
         }
-        jsonObject.addProperty("date", shopUnitEntity.getLastUpdateDateTime().toString());
-        jsonObject.addProperty("price", shopUnitEntity.getPrice());
+        jsonObject.addProperty("date", shopUnitEntity.getLastUpdateDateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")));
+        if (shopUnitEntity.getSize() > 0) {
+            jsonObject.addProperty("price", shopUnitEntity.getPrice() / shopUnitEntity.getSize());
+        } else {
+            jsonObject.addProperty("price", shopUnitEntity.getPrice());
+        }
         if (shopUnitEntity.getType() == ShopUnitEntity.ShopUnitType.OFFER) {
             jsonObject.add("children", JsonNull.INSTANCE);
         } else {

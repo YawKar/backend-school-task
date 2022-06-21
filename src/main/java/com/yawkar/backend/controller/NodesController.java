@@ -2,6 +2,8 @@ package com.yawkar.backend.controller;
 
 import com.yawkar.backend.service.ShopUnitService;
 import com.yawkar.backend.utils.GsonUtils;
+import com.yawkar.backend.utils.Imports;
+import com.yawkar.backend.utils.ImportsUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -68,16 +70,22 @@ public class NodesController {
         }
     }
 
-    @PostMapping(value = "imports")
-    public ResponseEntity<String> imports() {
-        return ResponseEntity
-                .ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .body("{\"name\": \"Пустышка\",\n" +
-                        "      \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66a222\",\n" +
-                        "      \"price\": 4,\n" +
-                        "      \"date\": \"2022-05-28T21:12:01.000Z\",\n" +
-                        "      \"type\": \"OFFER\",\n" +
-                        "      \"parentId\": \"3fa85f64-5717-4562-b3fc-2c963f66a111\"}");
+    @PostMapping(value = "imports", consumes = "application/json")
+    public ResponseEntity<String> imports(@RequestBody String payload) {
+        if (ImportsUtils.isValidImports(payload)) {
+            Imports imports = GsonUtils.gson.fromJson(payload, Imports.class);
+            for (var shopUnit : imports.getItems()) {
+                shopUnit.setLastUpdateDateTime(imports.getUpdateTime());
+                shopUnitService.saveWithUpdateTree(shopUnit);
+            }
+            return ResponseEntity
+                    .ok()
+                    .build();
+        } else {
+            return ResponseEntity
+                    .badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"code\": 400, \"message\": \"Validation Failed\"}");
+        }
     }
 }

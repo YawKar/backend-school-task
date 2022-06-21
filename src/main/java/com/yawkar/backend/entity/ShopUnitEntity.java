@@ -11,6 +11,14 @@ import java.util.UUID;
 @Table(name = "shopunits")
 public class ShopUnitEntity {
 
+    public Integer getSize() {
+        return size;
+    }
+
+    public void setSize(Integer size) {
+        this.size = size;
+    }
+
     public enum ShopUnitType {
         OFFER,
         CATEGORY
@@ -22,6 +30,7 @@ public class ShopUnitEntity {
     private UUID uuid;
 
     @Column(name = "parent_uuid")
+    @Type(type="uuid-char")
     private UUID parentUuid;
 
     @Column(name = "name", nullable = false)
@@ -36,6 +45,9 @@ public class ShopUnitEntity {
     @Column(name = "type")
     private ShopUnitType type;
 
+    @Column(name = "size")
+    private Integer size;
+
     public List<ShopUnitEntity> getChildren() {
         return children;
     }
@@ -44,7 +56,7 @@ public class ShopUnitEntity {
         this.children = children;
     }
 
-    @OneToMany
+    @Transient
     private List<ShopUnitEntity> children;
 
     public UUID getUuid() {
