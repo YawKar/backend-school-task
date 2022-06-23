@@ -13,9 +13,7 @@ public class SalesUtils {
         JsonObject jsonObject = new JsonObject();
         JsonArray items = new JsonArray();
         for (var offer : offers) {
-            items.add(GsonUtils.gson.toJsonTree(
-                    GsonUtils.gson.toJson(offer, ShopUnitEntity.class)
-            ));
+            items.add(GsonUtils.gson.toJsonTree(offer));
         }
         jsonObject.add("items", items);
         return jsonObject;
