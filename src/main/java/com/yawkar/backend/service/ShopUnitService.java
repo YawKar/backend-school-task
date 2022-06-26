@@ -24,8 +24,13 @@ public class ShopUnitService {
         return shopUnitRepository.existsById(uuid);
     }
 
+    /**
+     * Grabs shop unit with all sub-shopunits together (very expensive request)
+     * @param uuid {@code UUID} of shop unit
+     * @return {@link ShopUnitEntity} with all data
+     */
     public ShopUnitEntity findById(UUID uuid) {
-        ShopUnitEntity shopUnitEntity = shopUnitRepository.findById(uuid).orElseGet(() -> null);
+        ShopUnitEntity shopUnitEntity = shopUnitRepository.findById(uuid).orElse(null);
         if (shopUnitEntity != null && shopUnitEntity.getType() == ShopUnitEntity.ShopUnitType.CATEGORY) {
             shopUnitEntity.setChildren(new ArrayList<>());
             for (var child : findAllByParentUuid(uuid)) {
@@ -55,6 +60,10 @@ public class ShopUnitService {
         shopUnitRepository.save(shopUnitEntity);
     }
 
+    /**
+     * Saves (or updates) given shop unit with updating parent categories (if exist)
+     * @param shopUnitEntity given shop unit that needs to be saved
+     */
     public void saveWithUpdateTree(ShopUnitEntity shopUnitEntity) {
         boolean updatePrice = false;
         boolean isNewOffer = false;
@@ -99,6 +108,10 @@ public class ShopUnitService {
         save(parent);
     }
 
+    /**
+     * Deletes offer and updates data of parent categories
+     * @param offerUuid {@code UUID} of the offer that needs to be deleted
+     */
     private void deleteOffer(UUID offerUuid) {
         ShopUnitEntity offer = findById(offerUuid);
         shopUnitRepository.deleteById(offerUuid);
@@ -126,6 +139,10 @@ public class ShopUnitService {
         save(parent);
     }
 
+    /**
+     * Deletes sub-shopunits and itself
+     * @param shopUnitEntity root
+     */
     private void deleteSubTreeWithRoot(ShopUnitEntity shopUnitEntity) {
         if (shopUnitEntity.getType() == ShopUnitEntity.ShopUnitType.OFFER) {
             shopUnitRepository.deleteById(shopUnitEntity.getUuid());
@@ -137,6 +154,12 @@ public class ShopUnitService {
         }
     }
 
+    /**
+     * Deletes category with given {@code UUID}<br>
+     * Perhaps, deletes subcategories and suboffers, after that goes up and updates
+     * data of parent categories
+     * @param categoryUuid {@code UUID} of the category that should be deleted
+     */
     private void deleteCategory(UUID categoryUuid) {
         ShopUnitEntity category = findById(categoryUuid);
         boolean isPriceChanging = false;
@@ -168,6 +191,12 @@ public class ShopUnitService {
         }
     }
 
+    /**
+     * Deletes shop unit with given {@code UUID}<br>
+     * If type of the shop unit is {@code OFFER} : {@link #deleteOffer(UUID)}<br>
+     * Otherwise : {@link #deleteCategory(UUID)}
+     * @param uuid {@code UUID} of the shop unit that should be deleted
+     */
     public void deleteById(UUID uuid) {
         if (findById(uuid).getType() == ShopUnitEntity.ShopUnitType.OFFER) {
             deleteOffer(uuid);

@@ -11,6 +11,13 @@ import java.io.FileReader;
 
 public class ImportsUtils {
 
+    /**
+     * Reads JSON-Schema from imports.json file and creates validator
+     * with strict validation strategy. Tries to perform validation
+     * of given {@code String}
+     * @param importsJson given string with json that needs to be validated
+     * @return result of validation
+     */
     public static boolean isValidImports(String importsJson) {
         try {
             JSONObject jsonSchema = new JSONObject(

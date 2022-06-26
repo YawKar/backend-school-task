@@ -16,10 +16,10 @@ import java.util.regex.Pattern;
 @RestController
 public class NodesController {
 
-    public static final String UUID_STRING =
+    public static final String UUID_PATTERN_STRING =
             "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}";
 
-    public static final Pattern UUID_PATTERN = Pattern.compile(UUID_STRING);
+    public static final Pattern UUID_PATTERN = Pattern.compile(UUID_PATTERN_STRING);
 
     @Autowired
     private ShopUnitService shopUnitService;
