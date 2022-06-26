@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -30,11 +31,15 @@ public class ShopUnitService {
      * @return {@link ShopUnitEntity} with all data
      */
     public ShopUnitEntity findById(UUID uuid) {
+        return shopUnitRepository.findById(uuid).orElse(null);
+    }
+
+    public ShopUnitEntity findByIdFull(UUID uuid) {
         ShopUnitEntity shopUnitEntity = shopUnitRepository.findById(uuid).orElse(null);
         if (shopUnitEntity != null && shopUnitEntity.getType() == ShopUnitEntity.ShopUnitType.CATEGORY) {
             shopUnitEntity.setChildren(new ArrayList<>());
             for (var child : findAllByParentUuid(uuid)) {
-                shopUnitEntity.getChildren().add(findById(child.getUuid()));
+                shopUnitEntity.getChildren().add(findByIdFull(child.getUuid()));
             }
         }
         return shopUnitEntity;
@@ -60,52 +65,141 @@ public class ShopUnitService {
         shopUnitRepository.save(shopUnitEntity);
     }
 
+    private void updateCategory(ShopUnitEntity category) {
+        ShopUnitEntity oldCategory = findById(category.getUuid());
+        category.setPrice(oldCategory.getPrice());
+        category.setSize(oldCategory.getSize());
+        if (category.getParentUuid() != oldCategory.getParentUuid()) {
+            if (oldCategory.getParentUuid() == null) {
+                save(category);
+                if (existsById(category.getParentUuid())) {
+                    updatePriceSizeAndDateUpToTheRootFrom(findById(category.getParentUuid()), category.getPrice(), category.getSize(), category.getLastUpdateDateTime());
+                }
+            } else {
+                save(category);
+                if (existsById(oldCategory.getParentUuid())) {
+                    updatePriceSizeAndDateUpToTheRootFrom(findById(oldCategory.getParentUuid()), -category.getPrice(), -category.getSize(), category.getLastUpdateDateTime());
+                }
+                if (category.getParentUuid() != null && existsById(category.getParentUuid())) {
+                    updatePriceSizeAndDateUpToTheRootFrom(findById(category.getParentUuid()), category.getPrice(), category.getSize(), category.getLastUpdateDateTime());
+                }
+            }
+        } else {
+            save(category);
+        }
+    }
+
+    private void saveNewCategory(ShopUnitEntity category) {
+        List<ShopUnitEntity> childrenThatMayExist = findAllByParentUuid(category.getUuid());
+        for (var child : childrenThatMayExist) {
+            category.setSize(category.getSize() + child.getSize());
+            if (child.getPrice() != null) {
+                category.setPrice((category.getPrice() == null ? 0 : category.getPrice()) + child.getPrice());
+            }
+        }
+        save(category);
+        if (category.getParentUuid() == null || !existsById(category.getParentUuid())) {
+            return;
+        }
+        ShopUnitEntity parent = findById(category.getParentUuid());
+        while (true) {
+            parent.setLastUpdateDateTime(category.getLastUpdateDateTime());
+            parent.setSize(parent.getSize() + category.getSize());
+            if (category.getPrice() != null) {
+                parent.setPrice((parent.getPrice() == null ? 0 : parent.getPrice()) + category.getPrice());
+            }
+            save(parent);
+            if (parent.getParentUuid() == null || !existsById(parent.getParentUuid())) {
+                break;
+            }
+            parent = findById(parent.getParentUuid());
+        }
+    }
+
+    private void updatePriceSizeAndDateUpToTheRootFrom(ShopUnitEntity startNode, Integer priceDelta, int sizeDelta, LocalDateTime newDate) {
+        while (true) {
+            if (newDate != null) {
+                startNode.setLastUpdateDateTime(newDate);
+            }
+            if (priceDelta != null) {
+                startNode.setPrice((startNode.getPrice() == null ? 0 : startNode.getPrice()) + priceDelta);
+            }
+            startNode.setSize(startNode.getSize() + sizeDelta);
+            if (startNode.getSize() == 0) {
+                // It's possible only inside an empty category
+                startNode.setPrice(null);
+            }
+            save(startNode);
+            if (startNode.getParentUuid() == null || !existsById(startNode.getParentUuid())) {
+                break;
+            }
+            startNode = findById(startNode.getParentUuid());
+        }
+    }
+
+    private void updateOffer(ShopUnitEntity offer) {
+        ShopUnitEntity oldOffer = findById(offer.getUuid());
+        if (offer.getParentUuid() != oldOffer.getParentUuid()) {
+            if (oldOffer.getParentUuid() == null) {
+                save(offer);
+                if (existsById(offer.getParentUuid())) {
+                    updatePriceSizeAndDateUpToTheRootFrom(findById(offer.getParentUuid()), offer.getPrice(), 1, offer.getLastUpdateDateTime());
+                }
+            } else {
+                save(offer);
+                if (existsById(oldOffer.getParentUuid())) {
+                    updatePriceSizeAndDateUpToTheRootFrom(findById(oldOffer.getParentUuid()), -offer.getPrice(), -1, offer.getLastUpdateDateTime());
+                }
+                if (offer.getParentUuid() != null && existsById(offer.getParentUuid())) {
+                    updatePriceSizeAndDateUpToTheRootFrom(findById(offer.getParentUuid()), offer.getPrice(), 1, offer.getLastUpdateDateTime());
+                }
+            }
+        } else if (!Objects.equals(offer.getPrice(), oldOffer.getPrice())) {
+            save(offer);
+            if (offer.getParentUuid() != null && existsById(offer.getParentUuid())) {
+                updatePriceSizeAndDateUpToTheRootFrom(findById(offer.getParentUuid()), offer.getPrice() - oldOffer.getPrice(), 0, offer.getLastUpdateDateTime());
+            }
+        } else {
+            save(offer);
+        }
+    }
+
+    private void saveNewOffer(ShopUnitEntity offer) {
+        save(offer);
+        if (offer.getParentUuid() == null || !existsById(offer.getParentUuid())) {
+            return;
+        }
+        ShopUnitEntity parent = findById(offer.getParentUuid());
+        while (true) {
+            parent.setLastUpdateDateTime(offer.getLastUpdateDateTime());
+            parent.setSize(parent.getSize() + 1);
+            parent.setPrice((parent.getPrice() == null ? 0 : parent.getPrice()) + offer.getPrice());
+            save(parent);
+            if (parent.getParentUuid() == null || !existsById(parent.getParentUuid())) {
+                break;
+            }
+            parent = findById(parent.getParentUuid());
+        }
+    }
+
     /**
      * Saves (or updates) given shop unit with updating parent categories (if exist)
      * @param shopUnitEntity given shop unit that needs to be saved
      */
     public void saveWithUpdateTree(ShopUnitEntity shopUnitEntity) {
-        boolean updatePrice = false;
-        boolean isNewOffer = false;
-        int priceDelta = 0;
-        if (shopUnitEntity.getType() == ShopUnitEntity.ShopUnitType.OFFER) {
-            priceDelta = shopUnitEntity.getPrice();
+        if (shopUnitEntity.getType() == ShopUnitEntity.ShopUnitType.CATEGORY) {
             if (existsById(shopUnitEntity.getUuid())) {
-                priceDelta -= findById(shopUnitEntity.getUuid()).getPrice();
+                updateCategory(shopUnitEntity);
             } else {
-                isNewOffer = true;
+                saveNewCategory(shopUnitEntity);
             }
-            updatePrice = true;
         } else {
             if (existsById(shopUnitEntity.getUuid())) {
-                shopUnitEntity.setPrice(findById(shopUnitEntity.getUuid()).getPrice());
-                shopUnitEntity.setSize(findById(shopUnitEntity.getUuid()).getSize());
+                updateOffer(shopUnitEntity);
+            } else {
+                saveNewOffer(shopUnitEntity);
             }
         }
-        save(shopUnitEntity);
-        if (shopUnitEntity.getParentUuid() == null) {
-            return;
-        }
-        ShopUnitEntity parent = findById(shopUnitEntity.getParentUuid());
-        while (parent.getParentUuid() != null) {
-            parent.setLastUpdateDateTime(shopUnitEntity.getLastUpdateDateTime());
-            if (updatePrice) {
-                parent.setPrice((parent.getPrice() == null ? 0 : parent.getPrice()) + priceDelta);
-            }
-            if (isNewOffer) {
-                parent.setSize(parent.getSize() + 1);
-            }
-            save(parent);
-            parent = findById(parent.getParentUuid());
-        }
-        parent.setLastUpdateDateTime(shopUnitEntity.getLastUpdateDateTime());
-        if (updatePrice) {
-            parent.setPrice((parent.getPrice() == null ? 0 : parent.getPrice()) + priceDelta);
-        }
-        if (isNewOffer) {
-            parent.setSize(parent.getSize() + 1);
-        }
-        save(parent);
     }
 
     /**
@@ -115,28 +209,10 @@ public class ShopUnitService {
     private void deleteOffer(UUID offerUuid) {
         ShopUnitEntity offer = findById(offerUuid);
         shopUnitRepository.deleteById(offerUuid);
-        if (offer.getParentUuid() == null) {
+        if (offer.getParentUuid() == null || !existsById(offer.getParentUuid())) {
             return;
         }
-        int priceDelta = -offer.getPrice();
-        ShopUnitEntity parent = findById(offer.getParentUuid());
-        while (parent.getParentUuid() != null) {
-            parent.setSize(parent.getSize() - 1);
-            if (parent.getSize() == 0) {
-                parent.setPrice(null);
-            } else {
-                parent.setPrice(parent.getPrice() + priceDelta);
-            }
-            save(parent);
-            parent = findById(parent.getParentUuid());
-        }
-        parent.setSize(parent.getSize() - 1);
-        if (parent.getSize() == 0) {
-            parent.setPrice(null);
-        } else {
-            parent.setPrice(parent.getPrice() + priceDelta);
-        }
-        save(parent);
+        updatePriceSizeAndDateUpToTheRootFrom(findById(offer.getParentUuid()), -offer.getPrice(), -1, null);
     }
 
     /**
@@ -147,7 +223,7 @@ public class ShopUnitService {
         if (shopUnitEntity.getType() == ShopUnitEntity.ShopUnitType.OFFER) {
             shopUnitRepository.deleteById(shopUnitEntity.getUuid());
         } else {
-            for (var child : shopUnitEntity.getChildren()) {
+            for (var child : findAllByParentUuid(shopUnitEntity.getUuid())) {
                 deleteSubTreeWithRoot(child);
             }
             shopUnitRepository.deleteById(shopUnitEntity.getUuid());
@@ -162,33 +238,11 @@ public class ShopUnitService {
      */
     private void deleteCategory(UUID categoryUuid) {
         ShopUnitEntity category = findById(categoryUuid);
-        boolean isPriceChanging = false;
-        int priceDelta = 0;
-        int sizeDelta = -category.getSize();
-        if (category.getPrice() != null) {
-            isPriceChanging = true;
-            priceDelta = -category.getPrice();
-        }
         deleteSubTreeWithRoot(category);
-        if (category.getParentUuid() == null) {
+        if (category.getParentUuid() == null || !existsById(category.getParentUuid())) {
             return;
         }
-        ShopUnitEntity parent = findById(category.getParentUuid());
-        while (true) {
-            parent.setSize(parent.getSize() + sizeDelta);
-            if (isPriceChanging) {
-                if (parent.getSize() == 0) {
-                    parent.setPrice(null);
-                } else {
-                    parent.setPrice(parent.getPrice() + priceDelta);
-                }
-            }
-            save(parent);
-            if (parent.getParentUuid() == null) {
-                break;
-            }
-            parent = findById(parent.getParentUuid());
-        }
+        updatePriceSizeAndDateUpToTheRootFrom(findById(category.getParentUuid()), category.getPrice() == null ? null : -category.getPrice(), -category.getSize(), null);
     }
 
     /**

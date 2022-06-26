@@ -32,7 +32,7 @@ public class NodesController {
                 return ResponseEntity
                         .ok()
                         .contentType(MediaType.APPLICATION_JSON)
-                        .body(GsonUtils.gson.toJson(shopUnitService.findById(uuid)));
+                        .body(GsonUtils.gson.toJson(shopUnitService.findByIdFull(uuid)));
             } else {
                 return ResponseEntity
                         .status(HttpStatus.NOT_FOUND)

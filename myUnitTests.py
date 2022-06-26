@@ -1379,6 +1379,121 @@ def test_11():
 
     print("Test 11 passed!")
 
+def test_12():
+    ### Test:
+    #   1.  Imports CATEGORY_1
+    #   2.  Imports OFFER_1 that is a child of CATEGORY_1
+    #   3.  Imports CATEGORY_2
+    #   4.  Updates CATEGORY_1 so now it's a child of CATEGORY_2
+    #   5.  Gets CATEGORY_2
+    #   6.  Deletes CATEGORY_2
+
+    #   1.  Imports CATEGORY_1
+    CATEGORY_IMPORT = {
+        "items": [
+            {
+                "type": "CATEGORY",
+                "name": "CATEGORY_1",
+                "id": "263e1a7a-1304-42ae-943b-179184c077e3",
+                "parentId": None
+            }
+        ],
+        "updateDate": "2022-02-04T15:00:00.000Z"
+    }
+    status, _ = request("/imports", method="POST", data=CATEGORY_IMPORT)
+    assert status == 200, f"Expected HTTP status code 200, got {status}"
+
+    #   2.  Imports OFFER_1 that is a child of CATEGORY_1
+    OFFER_IMPORT = {
+        "items": [
+            {
+                "type": "OFFER",
+                "name": "OFFER_1",
+                "id": "123e1a7a-1304-42ae-943b-179184c077e3",
+                "parentId": "263e1a7a-1304-42ae-943b-179184c077e3",
+                "price": 79999
+            }
+        ],
+        "updateDate": "2022-02-06T11:00:00.000Z"
+    }
+    status, _ = request("/imports", method="POST", data=OFFER_IMPORT)
+    assert status == 200, f"Expected HTTP status code 200, got {status}"
+
+    #   3.  Imports CATEGORY_2
+    CATEGORY_IMPORT = {
+        "items": [
+            {
+                "type": "CATEGORY",
+                "name": "CATEGORY_2",
+                "id": "363e1a7a-1304-42ae-943b-179184c077e3",
+                "parentId": None
+            }
+        ],
+        "updateDate": "2022-02-08T15:00:00.000Z"
+    }
+    status, _ = request("/imports", method="POST", data=CATEGORY_IMPORT)
+    assert status == 200, f"Expected HTTP status code 200, got {status}"
+
+    #   4.  Updates CATEGORY_1 so now it's a child of CATEGORY_2
+    CATEGORY_IMPORT = {
+        "items": [
+            {
+                "type": "CATEGORY",
+                "name": "CATEGORY_1",
+                "id": "263e1a7a-1304-42ae-943b-179184c077e3",
+                "parentId": "363e1a7a-1304-42ae-943b-179184c077e3"
+            }
+        ],
+        "updateDate": "2022-02-09T15:00:00.000Z"
+    }
+    status, _ = request("/imports", method="POST", data=CATEGORY_IMPORT)
+    assert status == 200, f"Expected HTTP status code 200, got {status}"
+
+    #   5.  Gets CATEGORY_2
+    EXPECTED_CATEGORY = {
+        "type": "CATEGORY",
+        "name": "CATEGORY_2",
+        "id": "363e1a7a-1304-42ae-943b-179184c077e3",
+        "parentId": None,
+        "price": 79999,
+        "date": "2022-02-09T15:00:00.000Z",
+        "children": [
+            {
+                "type": "CATEGORY",
+                "name": "CATEGORY_1",
+                "id": "263e1a7a-1304-42ae-943b-179184c077e3",
+                "price": 79999,
+                "parentId": "363e1a7a-1304-42ae-943b-179184c077e3",
+                "date": "2022-02-09T15:00:00.000Z",
+                "children": [
+                    {
+                        "type": "OFFER",
+                        "name": "OFFER_1",
+                        "id": "123e1a7a-1304-42ae-943b-179184c077e3",
+                        "parentId": "263e1a7a-1304-42ae-943b-179184c077e3",
+                        "price": 79999,
+                        "children": None,
+                        "date": "2022-02-06T11:00:00.000Z"
+                    }
+                ]
+            }
+        ]
+    }
+    status, response = request(f"/nodes/363e1a7a-1304-42ae-943b-179184c077e3", json_response=True)
+    assert status == 200, f"Expected HTTP status code 200, got {status}"
+    deep_sort_children(response)
+    deep_sort_children(EXPECTED_CATEGORY)
+    if response != EXPECTED_CATEGORY:
+        print_diff(EXPECTED_CATEGORY, response)
+        print("Response tree doesn't match expected tree.")
+        sys.exit(1)
+
+    #   6.  Deletes CATEGORY_2
+    status, _ = request(f"/delete/363e1a7a-1304-42ae-943b-179184c077e3", method="DELETE")
+    assert status == 200, f"Expected HTTP status code 200, got {status}"
+
+    print("Test 12 passed!")
+
 def json_schema_test_1():
     ### Test:
     #   1.  Tries to get information about node via incorrect UUID
@@ -1531,6 +1646,7 @@ def functionality_tests():
     test_9()
     test_10()
     test_11()
+    test_12()
 
 def json_schema_tests():
     json_schema_test_1()
