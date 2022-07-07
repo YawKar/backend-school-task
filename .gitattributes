@@ -1,1 +1,1 @@
-myUnitTests.py -linguist-vendored
+myUnitTests.py linguist-vendored=false
