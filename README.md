@@ -2,6 +2,10 @@
 (In fact, this is an enrollment task to the school of Yandex backend development)
 REST API service that manages categories and offers for processing statistics, for example: arithmetical mean of prices of all offers in category and sub-categories
 
+![Project stage: DEPRECATED][project-stage-badge: DEPRECATED]
+
+[project-stage-badge: DEPRECATED]: https://img.shields.io/badge/Project%20Stage-%20!%20DEPRECATED%20%20%20!-ff0000.svg
+
 ## API endpoints
 * `GET /nodes/{shopUnitUuid}`
 * `GET /sales`
